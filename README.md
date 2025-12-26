@@ -1,2 +1,1 @@
-# learn.linux.
-learn linux projects
+# cyber-ai

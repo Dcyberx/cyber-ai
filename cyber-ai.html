@@ -1,0 +1,548 @@
+// 1. **Sanitize User Input** to prevent XSS
+function sanitizeInput(input) {
+  const element = document.createElement('div');
+  element.textContent = input;  
+  return element.innerHTML;  
+}
+
+// 2. **Prevent Sending Messages Too Fast (Rate Limiting)**
+let lastMessageTime = 0;
+const RATE_LIMIT = 3000;  
+
+// 3. **Add Time for Displaying Message (For the UI)**
+function getTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// 4. **Add Message to Chat Interface**
+function addMessage(text, sender) {
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `message ${sender}`;
+
+  messageDiv.innerHTML = `
+    <div class="message-content">${text}</div>
+    <div class="message-time">${getTime()}</div>
+  `;
+
+  chatMessages.insertBefore(messageDiv, typingIndicator);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 5. **Send Message (With Protection)**
+async function sendMessage() {
+  const now = Date.now();
+  if (now - lastMessageTime < RATE_LIMIT) {
+    alert("You're sending messages too fast. Please wait a moment.");
+    return;
+  }
+
+  const message = sanitizeInput(chatInput.value.trim());
+  if (!message) return;
+
+  addMessage(message, "user");
+  chatInput.value = "";
+  typingIndicator.classList.add("active");
+
+  try {
+    const response = await getBotResponse(message);
+    if (!response) {
+      throw new Error("No response from the bot.");
+    }
+    typingIndicator.classList.remove("active");
+    addMessage(response, "bot");
+    lastMessageTime = now;
+  } catch (err) {
+    typingIndicator.classList.remove("active");
+    console.error("Error getting response:", err);
+    addMessage("⚠️ Error getting response. Please try again.", "bot");
+  }
+}
+
+// 6. **Event Listeners**
+sendBtn.addEventListener("click", sendMessage);
+chatInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") sendMessage();
+});
+
+// Levenshtein Distance function to calculate the similarity score
+const levenshtein = (a, b) => {
+  const tmp = [];
+  let i, j, alen = a.length, blen = b.length, score;
+
+  if (alen === 0) return blen;
+  if (blen === 0) return alen;
+
+  for (i = 0; i <= alen; i++) tmp[i] = [i];
+
+  for (j = 0; j <= blen; j++) tmp[0][j] = j;
+
+  for (i = 1; i <= alen; i++) {
+    for (j = 1; j <= blen; j++) {
+      score = a[i - 1] === b[j - 1] ? 0 : 1;
+      tmp[i][j] = Math.min(tmp[i - 1][j] + 1, tmp[i][j - 1] + 1, tmp[i - 1][j - 1] + score);
+    }
+  }
+  return tmp[alen][blen];
+};
+
+export async function getBotResponse(userMessage) {
+  const responses = [
+    // Existing responses...
+    {
+      intent: "greeting",
+      phrases: [
+        "hi", "hello","hey","hiya","what's up","howdy","yo","whats up","how is everything"
+      ],
+      response: "Hello 👋 How can I help you?"
+    },
+    {
+      intent: "greeting_salam",
+      phrases: [
+        "Assalam alikum","Assalam alaikum warahmatullahi wabarakatuh","Assalam alykum"
+      ],
+      response: "wa-alikum salam warahmatullahu wabarakatuh"
+    },
+    {
+      intent: "greeting_morning",
+      phrases: [
+        "good morning","morning","how is your morning","morning to you"
+      ],
+      response: "Good morning too, dear!"
+    },
+    {
+      intent: "greeting_afternoon",
+      phrases: [
+        "good afternoon","afternoon","how is your afternoon","good afternoon to you"
+      ],
+      response: "Good afternoon too, dear!"
+    },
+    {
+      intent: "greeting_evening",
+      phrases: [
+        "good evening","evening","good evening to you","how is your evening"
+      ],
+      response: "Good evening too, dear!"
+    },
+    {
+      intent: "thank_you",
+      phrases: [
+        "thank you","thanks","my thanks","appreciate it","thanks a lot","thanks for your help","your good","thanks alot","i relly appreciate","thank you so much","many thanks", "cheers","i am much obliged"
+      ],
+      response: "You're welcome! 🙌 If you need anything else, I'm here."
+    },
+    {
+      intent: "thanks_islamic",
+      phrases: [
+        "barakallahu fikum"
+      ],
+      response: "fikum barakallah"
+    },
+    {
+      intent: "goodbye",
+      phrases: [
+        "bye","goodbye","see you","take care","later","peace","see yah","take care","catch you later","see you soon","talk to you later","farewell", "good bye for now"
+      ],
+      response: "Goodbye 👋 Stay safe and keep learning!"
+    },
+    {
+      intent: "help",
+      phrases: [
+        "help","can you help me","assist","support","need help","guide me","give me some assistance"
+      ],
+      response: "Sure! Tell me what I can help with, if it's under my ability."
+    },
+    {
+      intent: "who_are_you",
+      phrases: [
+        "who are you","what are you","tell me about yourself","who is this","who's talking","what is your name","explain yourself","talk about your self","tell me about yourself","your self"
+      ],
+      response: "I'm Cyber Bot 🤖, your CyberTech AI assistant."
+    },
+    {
+      intent: "how_are_you",
+      phrases: [
+        "how are you","how's it going","how are things","what's up","how's everything","how are you doing","how is your day","how is your day going"
+      ],
+      response: "I'm doing great ⚡ Ready to help you with anything tech-related!"
+    },
+    {
+      intent: "why_start_cybertech",
+      phrases: [
+        "why did you start cybertech","why cybertech","what's the purpose of cybertech","why is cybertech important","why did dcyberx start cybertech","why did he start cybertech","why create cybertech"
+      ],
+      response: "CyberTech started as a meaningful project born from passion for technology and the desire to inspire others to explore the cyber-tech future ❤️"
+    },
+    {
+      intent: "what_is_cybertech",
+      phrases: [
+        "what is cybertech","tell me about cybertech","what is this platform","what does cybertech do","cybertech"
+      ],
+      response: "CyberTech is more than a website — it’s a platform for exploration, creativity, and determination in the digital future 🚀"
+    },
+    {
+      intent: "who_is_dcyberx",
+      phrases: [
+        "who is dcyberx","tell me about dcyberx","dcyberx","what do you know about dcyberx","do you know dcyberx","about dcyberx"
+      ],
+      response: "Dcyberx is my father, a teen Muslim digital creator passionate about tech, AI, and cyber-culture. His motto is: *Mindset is success* 💡"
+    },
+    {
+      intent: "what is_his_motto",
+      phrases: [
+        "what is his motto","what is dcyberx's motto","what is the motto of dcyberx","what is dcyberx's slogan","what is dcyberx's slogan","his principle", " his mantra", "his philosophy"
+      ],
+      response: "Mindset is success"
+    },
+    {
+      intent: "what_inspires_him",
+      phrases: [
+        "what inspires him","what inspired him","what inpired him to start cybertech","what motivates him"
+      ],
+      response: "Technology inspires him. Every time he sits at a computer, he feels alive — that’s where his true passion exists 💻🔥"
+    },
+    {
+      intent: "what_is_his_mission",
+      phrases: [
+        "what is his mission","what is the mission of dcyberx","what is dcyberx's mission","what mission does he have","what mission does he have in mind"
+      ],
+      response: "His mission is to design tools and platforms that empower people to innovate, create, and grow in the digital world 🌍"
+    },
+    {
+      intent: "privacy_policy",
+      phrases: [
+        "do you ayhve any privay policy","how do you respect our privacy","what is your privacy policy","privacy policy","privacy", "dcyberx nexus privacy policy"
+      ],
+      response: "CyberTech respects your privacy 🔐. We collect only minimal data needed to improve your experience."
+    },
+    {
+      intent: "how_to_support_cybertech",
+      phrases: [
+        "how can i support cybertech","how can i support dcyberx","how can i support you","how can i provide support","donate","donations", "how can we support","how can i pay","how can i subscribe","payments","subscriptions", "how can i donate"
+      ],
+      response: "Payments and donations are accepted via mobile money, cash, or approved digital wallets such as credit cards 💳 , home page, subcriptions or donate"
+    },
+    {
+      intent: "subscription_policy",
+      phrases: [
+        "how can i subscribe","subscription policy","dcyberx nexus subscription"
+      ],
+      response: "Dcyberx Nexus program subscriptions are open, pass throught subscription policy policies, subscription policy. then got to homepage, then subscritions 🎓 " 
+    },
+    {
+      intent: "subscription_plans_available",
+      phrases: [
+        "subscription plans","dcyberx nexus subscription plans","nexus subscritption plans","nexus program subscription plans"
+      ],
+      response: "Dcyberx nexus Subscription plans are available: daily, weekly  and monthly. with a 10% discount for first 10 qualifiers on all packages"
+    },
+    {
+      intent: "who_can_join_the_program",
+      phrases: [
+        "who is eligible","who can join the program","who qualifies for the program","program qualifications","qualifiers"
+      ],
+      response: "Anyone can join Dcyberx Nexus Academy — no prior tech knowledge is required to get started 💡"
+    },
+    {
+        intent: "what_to_gain",
+        phrases: [
+            "what will i gain from the program","what will i gain","what benefits will i get","how will it help me"
+        ],
+        response: "You will receive training in computer basics, design, Linux, Python, hands-on projects, community access, and free consultations 🧠"
+    },
+    {
+      intent: "are_refunds_available",
+      phrases: [
+        "are refunds available","can i be refunded","is there refund","can i cancel my subscription"
+      ],
+      response: "Yes. All plans of Dcyberx nexus program are prepaid and refundable, by conytacting Dcyberx and carrying out a refund form, but he gurantees the best of service delivery❌"
+    },
+    {
+      intent: "lessons_online_physical",
+      phrases: [
+        "are lessons online or physical","online or from home","learning from home or online"
+      ],
+      response: "Lessons are available both online and physically, depending on the client's desire, location and schedule 🌐"
+    },
+    {
+      intent: "hiring_me_or_getting_me_hire_or_hired",
+      phrases: [
+        "can i hire him for a job","can he be hired","hiring him","giving him a job","giving him asighnment"
+      ],
+      response: "Yes. Clients can hire Dcyberx to design their spaces and bring their imagination to life through creative architecture, or anything else regarding tech ✨"
+    },
+    {
+      intent: "does_he_have_a_girlfriend_or_a_gf",
+      phrases: [
+        "does dcyberx have a gf","does he have a girlfriend","does dcyberx have a girlfriend"
+      ],
+      response: "let me tell you a secret, What i know he does not have yet but the one will be blessed to have him"
+    },
+    {
+      intent: "dcyberx's_hobby_or_hobbies_or_like_or_favourites",
+      phrases: [
+        "what are dcyberx's hobbies","what are his favourites","what does dcyberx like","dcyberx hobbies","his favourites"
+      ],
+      response: "he really likes green, budminton, camping, creative writing, target practise, eagles and chicks, warm bodies movie"
+    },
+    {
+      intent: "where_does_dcyberx_or_he_live",
+      phrases: [
+        "where does dcyberx live","where does he live","where does he reside","where is he","where is he living"
+      ],
+      response: "for now, he lives at Kitebi at his uncle's"
+    },
+    {
+      intent: "where_does_he_study_or_is_he_studying",
+      phrases: [
+        "where does he study from","where does dcyberx study from","where does he go to school","where is he studying"
+      ],
+      response: "Dcyberx studies from Kitebi secondary school-kitebi"
+    },
+    {
+      intent: "where_does_he_or_did_he_study_his_primary_or_nursery",
+      phrases: [
+        "where does he study his nursery  from","where does he study his primary from","where did he study his nursery from","where did he study his primary from"
+      ],
+      response: "Dcyberx studied from African Academy Nursery and primary school-kitebi"
+    },
+
+    // Additional 30 new intents
+    {
+      intent: "tech_news",
+      phrases: [
+        "latest tech news","tech updates","new technology","latest gadgets","tech breakthroughs"
+      ],
+      response: "Stay tuned for the latest in tech news and innovations from around the world! 🚀"
+    },
+    {
+      intent: "career_advice",
+      phrases: [
+        "career tips","how to start in tech","career guidance","job hunting tips","career growth"
+      ],
+      response: "Focus on building skills, networking, and staying updated with industry trends to advance your career! 💼"
+    },
+    {
+      intent: "coding_help",
+      phrases: [
+        "help with coding","coding problems","debugging issues","learn programming","code assistance"
+      ],
+      response: "I'm here to help! Describe your coding problem, and I'll do my best to assist you."
+    },
+    {
+      intent: "ai_trends",
+      phrases: [
+        "AI news","artificial intelligence updates","latest in AI","AI research","future of AI"
+      ],
+      response: "AI continues to evolve rapidly. Stay informed about the latest breakthroughs and applications! 🤖"
+    },
+    {
+      intent: "cybersecurity_tips",
+      phrases: [
+        "cybersecurity advice","how to stay safe online","privacy tips","protect my data","security best practices"
+      ],
+      response: "Always use strong passwords, enable two-factor authentication, and be cautious of phishing scams!"
+    },
+    {
+      intent: "web_development",
+      phrases: [
+        "build a website","web development tips","HTML CSS help","website design","front-end development"
+      ],
+      response: "You can start by learning HTML, CSS, and JavaScript. There are plenty of tutorials available online!"
+    },
+    {
+      intent: "cloud_computing",
+      phrases: [
+        "cloud services","AWS or Azure","cloud storage","cloud deployment","cloud security"
+      ],
+      response: "Cloud computing offers scalable resources. Popular providers include AWS, Azure, and Google Cloud."
+    },
+    {
+      intent: "blockchain",
+      phrases: [
+        "blockchain news","cryptocurrency","decentralized apps","smart contracts","blockchain technology"
+      ],
+      response: "Blockchain is revolutionizing finance and data security. Keep an eye on the latest developments!"
+    },
+    {
+      intent: "data_science",
+      phrases: [
+        "data analysis","big data","machine learning","data visualization","data science projects"
+      ],
+      response: "Data science combines statistics and programming to extract insights from data."
+    },
+    {
+      intent: "game_development",
+      phrases: [
+        "make a game","game design","unity tutorials","game programming","indie game tips"
+      ],
+      response: "Game development involves coding, design, and storytelling. Start small and build your skills!"
+    },
+    {
+      intent: "digital_marketing",
+      phrases: [
+        "social media marketing","SEO tips","digital advertising","content strategy","online marketing"
+      ],
+      response: "Effective digital marketing requires quality content, SEO, and targeted campaigns."
+    },
+    {
+      intent: "tech_events",
+      phrases: [
+        "tech conferences","webinars","hackathons","industry events","meetups"
+      ],
+      response: "Attend industry events and webinars to expand your network and learn new skills."
+    },
+    {
+      intent: "programming_languages",
+      phrases: [
+        "which programming language should I learn","best coding languages","top programming languages","learn Python","learn Java"
+      ],
+      response: "Popular languages include Python, JavaScript, Java, and C++. Choose based on your goals!"
+    },
+    {
+      intent: "software_tools",
+      phrases: [
+        "best development tools","IDEs for programming","version control systems","code editors"
+      ],
+      response: "Popular tools include VS Code, Git, GitHub, and Docker for containerization."
+    },
+    {
+      intent: "tech_innovation",
+      phrases: [
+        "future tech trends","innovations in AI","robotics breakthroughs","next-gen tech"
+      ],
+      response: "The future is exciting! Innovations in AI, robotics, and quantum computing are shaping tomorrow."
+    },
+    {
+      intent: "learning_resources",
+      phrases: [
+        "best online courses","free tutorials","learning platforms","coding bootcamps"
+      ],
+      response: "Check out platforms like Coursera, Udemy, Khan Academy, and freeCodeCamp for quality resources."
+    },
+    {
+      intent: "startup_advice",
+      phrases: [
+        "how to start a tech startup","entrepreneurship tips","building a business","startup ideas"
+      ],
+      response: "Focus on solving real problems, validate your idea, and build a strong team to succeed!"
+    },
+    {
+      intent: "tech_history",
+      phrases: [
+        "history of computers","tech milestones","when was the internet invented","tech evolution"
+      ],
+      response: "Technology has evolved rapidly, from the first computers to today's AI-driven world."
+    },
+    {
+      intent: "smart_devices",
+      phrases: [
+        "best smart gadgets","IoT devices","smart home tech","wearable tech"
+      ],
+      response: "Smart devices are making life easier. Explore options like smart speakers, wearables, and home automation."
+    },
+    {
+      intent: "coding_challenges",
+      phrases: [
+        "coding puzzles","programming challenges","algorithm problems","practice coding"
+      ],
+      response: "Practice with coding challenges on platforms like LeetCode, HackerRank, and Codewars!"
+    },
+    {
+      intent: "tech_quotes",
+      phrases: [
+        "inspirational tech quotes","famous quotes about technology","tech motivation"
+      ],
+      response: "Here's a quote: 'Technology is best when it brings people together.' – Matt Mullenweg"
+    },
+    {
+      intent: "question_about_platform",
+      phrases: [
+        "How does this platform work?","Tell me about this site","What can I do here?","Platform features"
+      ],
+      response: "Our platform offers AI chat, resources, and tools to help you learn and grow in tech!"
+    },
+    {
+      intent: "feedback",
+      phrases: [
+        "I want to give feedback","Tell you my opinion","How to improve","Feedback about service"
+      ],
+      response: "We value your feedback! Please share your thoughts to help us improve."
+    },
+    {
+      intent: "how_old_is_he_dcyberx",
+      phrases: [
+        "how old is he","how old is dcyberx","How to improve","how many years does he have"
+      ],
+      response: "what_i_know_of_now_he_is_a_teenager"
+    },
+    {
+      intent: "what_is_your_importance",
+      phrases: [
+        "what is your importance","what do  you do","what is your aim","what do you help","what is your objective","what reaaly do  you do"
+      ],
+      response: "I am always here to help upon the best service at cybertech."
+    },
+    {
+      itnent: "what_is_the_aim_of_dcyerx",
+      phrases:[
+        "what is his aim","what is the aim of dcyberx","what is he aiming","what is  dcyberx aiming","what are the aims of dcyberx"
+      ],
+      response: "Dcyberx's aim is  to  make the better thing and servcie of cybertech which impliments his best vision"
+    },
+    {
+      intent: "why_did_he_use_the_dark_theme",
+      phrases:[
+        "why did dcyberx use the dark theme","why did  he use this theme","why did he in all themes use  this one","why did he choose this theme"
+      ],
+      response: "Dcyberx choose that theme beacause its  theoe which attracted and showedlove for the est of layout and appearance"
+    },
+    {
+      intent:  "what_really_put_ito_that",
+      phrases:[
+        "whatispired dcyberx  into this of technology","what inspired dcyberx into tech","what made dcyberx love this carrier"
+      ],
+      response: "cyberx loved and loves tech  / this arrier because its where he feels the best of love and encouragement"
+    },
+    {
+      intent: "what_things_inpire_him",
+      phrases:[
+        "what  inspires him","what makes him like tech","what makes dcyberx love","what puts dcyberx into  this"
+      ],
+      response: "the IOT devices, the way things and networks work, mostly the love to protect others online ( cyber security ) inspires dcyberx into this"
+    },
+    {
+      intent: "what_best_can_i_get_from_here",
+      phrases:[
+        "what  more super diffrent","what more interresting","what extraordinary can i get from this site"
+      ],
+      response: "This website atleast provides a wider best experince of a cyber futuristic aspect of technology, through like  me, the programs and all other services"
+    },
+  ];
+
+  // Preprocessing the user message to normalize text
+  const normalizeText = (text) => {
+    return text.toLowerCase().replace(/[^a-zA-Z0-9 ]/g, "");
+  };
+
+  // Get the best match based on Levenshtein Distance
+  const getBestMatch = (userMessage) => {
+    const normalizedUserMessage = normalizeText(userMessage);
+    let bestMatch = null;
+    let lowestDistance = Infinity;
+
+    for (let response of responses) {
+      for (let phrase of response.phrases) {
+        const normalizedPhrase = normalizeText(phrase);
+        const distance = levenshtein(normalizedUserMessage, normalizedPhrase);
+        if (distance < lowestDistance) {
+          lowestDistance = distance;
+          bestMatch = response.response;
+        }
+      }
+    }
+
+    return bestMatch || "I'm still learning, can you rephrase?";
+  };
+
+  return getBestMatch(userMessage);
+}
